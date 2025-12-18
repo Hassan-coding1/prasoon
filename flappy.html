@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flappy Bird – Baby Shark Valentines Edition</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial;
+}
+canvas {
+  display: block;
+  margin: auto;
+}
+
+/* START SCREEN */
+#startScreen {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+#playBtn {
+  font-size: 28px;
+  padding: 15px 40px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: yellow;
+}
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <h1>🐦 Flappy Bird</h1>
+  <h2>🦈 Baby Shark Valentines Edition</h2>
+  <button id="playBtn">▶ PLAY</button>
+  <p>or press ENTER</p>
+</div>
+
+<canvas id="gameCanvas" width="500" height="700"></canvas>
+
+<!-- MUSIC -->
+<audio id="bgMusic" src="babyshark.mp3" loop></audio>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+/* GAME STATE */
+let gameStarted = false;
+let gameOver = false;
+let bird, pipes, score;
+let spawnTimer = 0;
+let imgIndex = 0;
+
+/* BACKGROUND IMAGE */
+const bgImg = new Image();
+bgImg.src = "https://thumbs.dreamstime.com/b/lovers-embracing-holding-red-heart-happy-valentines-day-theme-series-stock-image-painted-fingers-smile-love-nthere-path-48803705.jpg";
+
+/* MAIN SPRITE */
+const birdImg = new Image();
+birdImg.src = "https://acssiliguri.com/userfiles/image/secondary/Mr.%20Prasoonjit%20Mukherjee.JPG";
+
+/* GAP IMAGES */
+const gapImgSrcs = [
+  "https://acssiliguri.com/userfiles/image/secondary/Bidisha_Thapa.jpg",
+  "https://acssiliguri.com/userfiles/image/secondary/Sabina_Gurung.jpg",
+  "https://acssiliguri.com/userfiles/image/secondary/Sumitra_Devi.jpg",
+  "https://acssiliguri.com/userfiles/image/11.jpg",
+  "https://acssiliguri.com/userfiles/image/primary/subhangi_ghosh.jpg",
+  "https://acssiliguri.com/userfiles/image/primary/shilpa_gupta.jpg",
+  "https://acssiliguri.com/userfiles/image/primary/Kritika_Chettri.jpg"
+];
+const gapImgs = gapImgSrcs.map(src=>{
+  const img = new Image();
+  img.src = src;
+  return img;
+});
+
+/* START GAME */
+function startGame(){
+  if(gameStarted) return;
+  gameStarted = true;
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("bgMusic").play();
+  resetGame();
+}
+
+document.getElementById("playBtn").onclick = startGame;
+document.addEventListener("keydown", e=>{
+  if(e.code==="Enter") startGame();
+  if(!gameStarted) return;
+  if(e.code==="Space"){
+    if(gameOver) resetGame();
+    bird.vy=-9;
+  }
+});
+
+/* RESET GAME */
+function resetGame(){
+  bird = { x:130, y:320, size:60, vy:0 }; // bird size
+  pipes = [];
+  score = 0;
+  gameOver = false;
+  spawnTimer = 0;
+}
+
+/* SPAWN PIPE */
+function spawnPipe(){
+  const gap = 300;
+  const topH = Math.random()*200 + 80;
+  const bottomY = topH + gap;
+  pipes.push({
+    x: canvas.width,
+    topH,
+    bottomY,
+    img: gapImgs[imgIndex % gapImgs.length],
+    scored:false
+  });
+  imgIndex++;
+}
+
+/* DRAW PROPER INVERTED HEART */
+function drawHeartBird(){
+  const x = bird.x;
+  const y = bird.y;
+  const s = bird.size;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(255, 0, 80, 0.8)";
+  ctx.shadowBlur = 25;
+
+  ctx.beginPath();
+  // PROPER HEART: WIDER + SHORTER FOR FACE
+ ctx.moveTo(x, y + s/2);                  // bottom tip
+ctx.bezierCurveTo(x - s*0.8, y,         // left side control
+                  x - s*0.8, y - s*0.8, // left top bulge slightly taller
+                  x, y - s/2);          // top center (higher)
+ctx.bezierCurveTo(x + s*0.8, y - s*0.8, // right top bulge slightly taller
+                  x + s*0.8, y,        // right side control
+                  x, y + s/2);         // bottom tip
+ctx.closePath();
+ctx.clip();
+
+  ctx.drawImage(birdImg, x - s, y - s, s*2, s*2);
+  ctx.restore();
+}
+
+/* GAME LOOP */
+function loop(){
+  // BACKGROUND
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+  if(gameStarted && !gameOver){
+    bird.vy += 0.5;
+    bird.y += bird.vy;
+
+    if(bird.y - bird.size <0 || bird.y + bird.size>canvas.height)
+      gameOver=true;
+
+    spawnTimer++;
+    if(spawnTimer>150){
+      spawnPipe();
+      spawnTimer=0;
+    }
+
+    pipes.forEach(p=>{
+      p.x -=3.2;
+      ctx.fillStyle="green";
+      ctx.fillRect(p.x,0,70,p.topH);
+      ctx.fillRect(p.x,p.bottomY,70,canvas.height);
+
+      // BIG GAP IMAGE
+      ctx.drawImage(p.img, p.x - 20, p.topH + 20, 110, 110);
+
+      // COLLISION
+      if(bird.x + bird.size > p.x && bird.x - bird.size < p.x + 70){
+        if(bird.y - bird.size < p.topH || bird.y + bird.size > p.bottomY)
+          gameOver = true;
+      }
+
+      // SCORE
+      if(!p.scored && p.x + 70 < bird.x){
+        score++;
+        p.scored=true;
+      }
+    });
+
+    drawHeartBird();
+
+    ctx.fillStyle = "yellow"; // bright color for contrast
+ctx.font = "bold 28px Comic Sans MS"; // fun font
+ctx.textAlign = "center";
+ctx.fillText("Score: " + score, canvas.width/2, 50); // top-center
+
+  }
+
+  if(gameOver){
+    ctx.fillStyle = "black"; // clearly visible
+    ctx.font = "bold 28px Arial";  // BOLD font
+    ctx.textAlign = "center";
+
+    // SPLIT TEXT INTO 2 LINES
+    ctx.fillText("YOU ARE A CERTIFIED FLIRTER", canvas.width/2, 320);
+    ctx.fillText("LIKE PRASOOOOONN!!😘🫦", canvas.width/2, 360);
+
+    ctx.fillStyle = "pink";
+    ctx.font = "bold 22px Arial"; // bold for press space line too
+    ctx.fillText("Press SPACE to restart", canvas.width/2, 400);
+}
+
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
